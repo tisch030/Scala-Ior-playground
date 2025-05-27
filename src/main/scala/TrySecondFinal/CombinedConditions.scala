@@ -9,79 +9,115 @@ case object All extends CombinationMode("all")
 case object AnyCombination extends CombinationMode("any")
 case object None extends CombinationMode("none")
 
-case class OnErrorWithValueConditions[A](
+case class CombinedConditions[A](
     errorConditions: List[OnOutputErrorCondition] = List.empty,
     valueConditions: List[OnValueCondition[A]] = List.empty,
+    nestedConditions: List[CombinedConditions[A]] = List.empty,
     combinationMode: CombinationMode = All
 ) {
   def shouldDrop(errors: NonEmptyList[OutputError], value: A): Boolean = combinationMode match {
     case All =>
-      errorConditions.forall(_.shouldDrop(errors)) && valueConditions.forall(_.shouldDrop(value))
+      errorConditions.forall(_.shouldDrop(errors)) && valueConditions.forall(_.shouldDrop(value)) &&
+      nestedConditions.forall(_.shouldDrop(errors, value))
     case AnyCombination =>
-      errorConditions.exists(_.shouldDrop(errors)) || valueConditions.exists(_.shouldDrop(value))
+      errorConditions.exists(_.shouldDrop(errors)) || valueConditions.exists(_.shouldDrop(value)) ||
+      nestedConditions.exists(_.shouldDrop(errors, value))
     case None =>
-      !errorConditions.exists(_.shouldDrop(errors)) && !valueConditions.exists(_.shouldDrop(value))
+      !errorConditions.exists(_.shouldDrop(errors)) && !valueConditions.exists(_.shouldDrop(value)) &&
+      !nestedConditions.exists(_.shouldDrop(errors, value))
     case _ => false
   }
 
   def shouldDropOnErrors(errors: NonEmptyList[OutputError]): Boolean = combinationMode match {
-    case All            => errorConditions.forall(_.shouldDrop(errors))
-    case AnyCombination => errorConditions.exists(_.shouldDrop(errors))
-    case None           => !errorConditions.exists(_.shouldDrop(errors))
-    case _              => false
+    case All =>
+      errorConditions.forall(_.shouldDrop(errors)) &&
+      nestedConditions.forall(_.shouldDropOnErrors(errors))
+    case AnyCombination =>
+      errorConditions.exists(_.shouldDrop(errors)) ||
+      nestedConditions.exists(_.shouldDropOnErrors(errors))
+    case None =>
+      !errorConditions.exists(_.shouldDrop(errors)) &&
+      !nestedConditions.exists(_.shouldDropOnErrors(errors))
+    case _ => false
   }
+
+  def shouldDropOnValue(value: A): Boolean = combinationMode match {
+    case All =>
+      valueConditions.forall(_.shouldDrop(value)) &&
+      nestedConditions.forall(_.shouldDropOnValue(value))
+    case AnyCombination =>
+      valueConditions.exists(_.shouldDrop(value)) ||
+      nestedConditions.exists(_.shouldDropOnValue(value))
+    case None =>
+      !valueConditions.exists(_.shouldDrop(value)) &&
+      !nestedConditions.exists(_.shouldDropOnValue(value))
+    case _ => false
+  }
+
 }
 
-case class OnErrorWithValueConditionsBuilder[A](
+case class CombinedConditionsBuilder[A](
     errorConditions: List[OnOutputErrorCondition] = List.empty,
     valueConditions: List[OnValueCondition[A]] = List.empty,
+    nestedConditions: List[CombinedConditions[A]] = List.empty,
     mode: CombinationMode = All
 ) {
 
-  def withErrorCondition(condition: OnOutputErrorCondition): OnErrorWithValueConditionsBuilder[A] =
+  def withErrorCondition(condition: OnOutputErrorCondition): CombinedConditionsBuilder[A] =
     copy(errorConditions = errorConditions :+ condition)
 
-  def withErrorConditions(conditions: List[OnOutputErrorCondition]): OnErrorWithValueConditionsBuilder[A] =
+  def withErrorConditions(conditions: List[OnOutputErrorCondition]): CombinedConditionsBuilder[A] =
     copy(errorConditions = errorConditions ++ conditions)
 
-  def withValueCondition(condition: OnValueCondition[A]): OnErrorWithValueConditionsBuilder[A] =
+  def withValueCondition(condition: OnValueCondition[A]): CombinedConditionsBuilder[A] =
     copy(valueConditions = valueConditions :+ condition)
 
-  def withValueConditions(conditions: List[OnValueCondition[A]]): OnErrorWithValueConditionsBuilder[A] =
+  def withValueConditions(conditions: List[OnValueCondition[A]]): CombinedConditionsBuilder[A] =
     copy(valueConditions = valueConditions ++ conditions)
 
-  def withCombinationMode(mode: CombinationMode): OnErrorWithValueConditionsBuilder[A] =
+  def withNestedCondition(condition: CombinedConditions[A]): CombinedConditionsBuilder[A] =
+    copy(nestedConditions = nestedConditions :+ condition)
+
+  def withCombinationMode(mode: CombinationMode): CombinedConditionsBuilder[A] =
     copy(mode = mode)
 
-  def build: OnErrorWithValueConditions[A] =
-    OnErrorWithValueConditions(errorConditions, valueConditions, mode)
+  def build: CombinedConditions[A] =
+    CombinedConditions(errorConditions, valueConditions, nestedConditions, mode)
 }
 
-object OnErrorWithValueConditions {
+object CombinedConditions {
 
   def apply[A](
       errorCondition: OnOutputErrorCondition
-  ): OnErrorWithValueConditions[A] =
-    OnErrorWithValueConditions(List(errorCondition), Nil, All)
+  ): CombinedConditions[A] =
+    CombinedConditions(List(errorCondition), Nil, Nil, All)
 
   def apply[A](
       valueCondition: OnValueCondition[A]
-  ): OnErrorWithValueConditions[A] =
-    OnErrorWithValueConditions(Nil, List(valueCondition), All)
+  ): CombinedConditions[A] =
+    CombinedConditions(Nil, List(valueCondition), Nil, All)
 
   def apply[A](
       errorCondition: OnOutputErrorCondition,
       valueCondition: OnValueCondition[A],
       mode: CombinationMode
-  ): OnErrorWithValueConditions[A] =
-    OnErrorWithValueConditions(List(errorCondition), List(valueCondition), mode)
+  ): CombinedConditions[A] =
+    CombinedConditions(List(errorCondition), List(valueCondition), Nil, mode)
 
   def apply[A](
-      errorConditions: List[OnOutputErrorCondition] = List.empty,
-      valueConditions: List[OnValueCondition[A]] = List.empty,
-      mode: CombinationMode = All
-  ): OnErrorWithValueConditions[A] =
-    new OnErrorWithValueConditions(errorConditions, valueConditions, mode)
+      errors: List[OnOutputErrorCondition],
+      values: List[OnValueCondition[A]],
+      mode: CombinationMode
+  ): CombinedConditions[A] =
+    CombinedConditions(errors, values, Nil, mode)
 
-  def dsl[A]: OnErrorWithValueConditionsBuilder[A] = OnErrorWithValueConditionsBuilder[A]()
+  def apply[A](
+      errors: List[OnOutputErrorCondition] = Nil,
+      values: List[OnValueCondition[A]] = Nil,
+      nested: List[CombinedConditions[A]] = Nil,
+      mode: CombinationMode = All
+  ): CombinedConditions[A] =
+    new CombinedConditions(errors, values, nested, mode)
+
+  def dsl[A]: CombinedConditionsBuilder[A] = CombinedConditionsBuilder[A]()
 }

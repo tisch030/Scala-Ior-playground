@@ -1,1 +1,4 @@
-package org.qadusch.example.model case class InfraObject ()
+package org.qadusch.example
+package model
+
+case class InfraObject(name: String, isAttachment: Boolean)

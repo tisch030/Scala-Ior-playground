@@ -2,5 +2,6 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <option name="separateProdTestSources" value="true" />
+    <profile name="sbt 1" modules="testScalaIor,testScalaIor.main,testScalaIor.test" />
   </component>
 </project>

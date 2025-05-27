@@ -1,16 +1,19 @@
 package org.qadusch.example
+package TrySimpleTraits
+
+import model.{InfraObject, OutputError, OutputErrorLevel}
 
 import cats.data.{Ior, IorNel, NonEmptyList}
 
-object IorNelOpsCpy {
-  implicit class IorOutputErrorOpsCpy[A](val ior: IorNel[OutputError, A]) extends AnyVal {
+object IorNelOpsBothTraits {
+  implicit class IorOutputErrorOpsBothTraits[A](val ior: IorNel[OutputError, A]) extends AnyVal {
 
-    def dropRightOnLeftCondition(condition: TrySecond.OnOutputErrorCondition): IorNel[OutputError, A] = ior match {
+    def dropRightOnLeftCondition(condition: OnOutputErrorCondition): IorNel[OutputError, A] = ior match {
       case Ior.Both(left: NonEmptyList[OutputError], _) if condition.shouldDrop(left) => Ior.Left(left)
       case _                                                                          => ior
     }
 
-    def dropLeftOnRightCondition(condition: TrySecond.OnValueCondition[A]): IorNel[OutputError, A] = ior match {
+    def dropLeftOnRightCondition(condition: OnValueCondition[A]): IorNel[OutputError, A] = ior match {
       case Ior.Both(_, right: A) if condition.shouldDrop(right) => Ior.Right(right)
       case _                                                    => ior
     }
@@ -22,7 +25,7 @@ trait OnOutputErrorCondition {
   def shouldDrop(errors: NonEmptyList[OutputError]): Boolean
 }
 
-case class PredicateOutputErrorCondition(predicate: NonEmptyList[OutputError] => Boolean) extends TrySecond.OnOutputErrorCondition {
+class PredicateOutputErrorCondition(predicate: NonEmptyList[OutputError] => Boolean) extends OnOutputErrorCondition {
   override def shouldDrop(errors: NonEmptyList[OutputError]): Boolean = predicate(errors)
 }
 
@@ -43,7 +46,7 @@ sealed abstract class ConditionOnField[A](
 
 object ErrorLevelConditions {
   case class FirstMatchLevelLowerThan(threshold: OutputErrorLevel, excludeErrorWithLevel: Set[OutputErrorLevel] = Set.empty)
-      extends TrySecond.ConditionOnField(
+      extends ConditionOnField(
         _.level,
         threshold,
         (a: OutputErrorLevel, b: OutputErrorLevel) => a.order < b.order,
@@ -52,7 +55,7 @@ object ErrorLevelConditions {
       )
 
   case class FirstMatchLevelHigherThan(threshold: OutputErrorLevel, excludeErrorWithLevel: Set[OutputErrorLevel] = Set.empty)
-      extends TrySecond.ConditionOnField(
+      extends ConditionOnField(
         _.level,
         threshold,
         (a: OutputErrorLevel, b: OutputErrorLevel) => a.order > b.order,
@@ -61,7 +64,7 @@ object ErrorLevelConditions {
       )
 
   case class AllMatchLevelLowerThan(threshold: OutputErrorLevel, excludeErrorWithLevel: Set[OutputErrorLevel] = Set.empty)
-      extends TrySecond.ConditionOnField(
+      extends ConditionOnField(
         _.level,
         threshold,
         (a: OutputErrorLevel, b: OutputErrorLevel) => a.order < b.order,
@@ -70,7 +73,7 @@ object ErrorLevelConditions {
       )
 
   case class AllMatchLevelHigherThan(threshold: OutputErrorLevel, excludeErrorWithLevel: Set[OutputErrorLevel] = Set.empty)
-      extends TrySecond.ConditionOnField(
+      extends ConditionOnField(
         _.level,
         threshold,
         (a: OutputErrorLevel, b: OutputErrorLevel) => a.order > b.order,
@@ -82,7 +85,7 @@ object ErrorLevelConditions {
 
 object ErrorMessageConditions {
   case class FirstMatchNameEquals(expectedName: String, excludeErrorWithLevel: Set[OutputErrorLevel] = Set.empty)
-      extends TrySecond.ConditionOnField(
+      extends ConditionOnField(
         _.message,
         expectedName,
         (a: String, b: String) => a == b,
@@ -91,7 +94,7 @@ object ErrorMessageConditions {
       )
 
   case class AllMatchNameEquals(expectedName: String, excludeErrorWithLevel: Set[OutputErrorLevel] = Set.empty)
-      extends TrySecond.ConditionOnField(
+      extends ConditionOnField(
         _.message,
         expectedName,
         (a: String, b: String) => a == b,
@@ -104,10 +107,10 @@ trait OnValueCondition[A] {
   def shouldDrop(value: A): Boolean
 }
 
-case class PredicateValueCondition[A](predicate: A => Boolean) extends TrySecond.OnValueCondition[A] {
+class PredicateValueCondition[A](predicate: A => Boolean) extends OnValueCondition[A] {
   def shouldDrop(value: A): Boolean = predicate(value)
 }
 
-case class IfEmptyString() extends TrySecond.PredicateValueCondition[String](_.isEmpty)
+case class IfEmptyString() extends PredicateValueCondition[String](_.isEmpty)
 
-case class ExistsInfraObject(name: String) extends TrySecond.PredicateValueCondition[List[InfraObject]](_.exists(_.name.equals(name)))
+case class ExistsInfraObject(name: String) extends PredicateValueCondition[List[InfraObject]](_.exists(_.name.equals(name)))

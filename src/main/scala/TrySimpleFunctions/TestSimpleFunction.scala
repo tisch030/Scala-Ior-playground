@@ -1,14 +1,15 @@
 package org.qadusch.example
+package TrySimpleFunctions
 
-import DropConditions.{ConditionOnOutputError, ConditionOnValue}
-import IorNelOps.IorOutputErrorOps
-import model.{Error, Info, InfraObject, OutputError, Warning}
+import TrySimpleFunctions.DropConditions._
+import TrySimpleFunctions.IorNelOpsSimpleFunction._
+import model._
 
 import cats.data.{Ior, IorNel, NonEmptyList}
 
 // === EXAMPLES ===
 
-object Hello2 extends App {
+object TestSimpleFunction extends App {
   val errors = NonEmptyList.of(
     OutputError("Missing field", Info),
     OutputError("Missing Noob", Info),

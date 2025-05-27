@@ -1,15 +1,16 @@
 package org.qadusch.example
+package TrySimpleTraits
 
-import ErrorLevelConditions._
-import ErrorMessageConditions._
-import IorNelOpsCpy.IorOutputErrorOpsCpy
-import TrySecond.{ExistsInfraObject, IfEmptyString, PredicateOutputErrorCondition, PredicateValueCondition}
+import TrySimpleTraits.ErrorLevelConditions.FirstMatchLevelLowerThan
+import TrySimpleTraits.ErrorMessageConditions._
+import TrySimpleTraits.IorNelOpsBothTraits._
+import model._
 
 import cats.data.{Ior, IorNel, NonEmptyList}
 
 // === EXAMPLES ===
 
-object Hello3 extends App {
+object TestSimpleTraits extends App {
   val errors = NonEmptyList.of(
     OutputError("Missing field", Info),
     OutputError("Missing Noob", Info),
@@ -33,8 +34,8 @@ object Hello3 extends App {
   val noRightAllErrorsName = result1.dropRightOnLeftCondition(FirstMatchNameEquals("Missing Noob"))
   val both2 = result1.dropRightOnLeftCondition(AllMatchNameEquals("Missing Noob"))
 
-  val errorsCondition = PredicateOutputErrorCondition(_.exists(_.level == Error))
-  val valueCondition = PredicateValueCondition[String](_.isEmpty)
+  val errorsCondition = new PredicateOutputErrorCondition(_.exists(_.level == Error))
+  val valueCondition = new PredicateValueCondition[String](_.isEmpty)
 
   val onlyInfras = result3.dropLeftOnRightCondition(ExistsInfraObject("Rail"))
 

@@ -1,5 +1,7 @@
 package org.qadusch.example
-package TrySecond
+package TryThird
+
+import model._
 
 import cats.data.{Ior, IorNel, NonEmptyList}
 
@@ -17,7 +19,7 @@ object IorNelOpsCpy2 {
         sideToDrop: Side,
         condition: OnOutputErrorCondition
     ): Option[IorNel[OutputError, A]] = ior match {
-      case Ior.Right => Some(ior)
+      case Ior.Right(right) => Some(ior)
       case Ior.Left(left: NonEmptyList[OutputError]) =>
         sideToDrop match {
           case Side.Left if condition.shouldDrop(left) => None
@@ -39,7 +41,7 @@ object IorNelOpsCpy2 {
         condition: OnOutputErrorCondition
     ): Option[IorNel[OutputError, A]] = ior match {
       case Ior.Left(left: NonEmptyList[OutputError]) if condition.shouldDrop(left) => None
-      case Ior.Right                                                               => Some(ior)
+      case Ior.Right(right)                                                        => Some(ior)
       case Ior.Both(left: NonEmptyList[OutputError], right: A) if condition.shouldDrop(left) =>
         Some(Ior.Right(right))
     }
@@ -49,7 +51,7 @@ object IorNelOpsCpy2 {
     ): IorNel[OutputError, A] = ior match {
       case Ior.Left(left: NonEmptyList[OutputError]) if condition.shouldDrop(left) =>
         Ior.Left(NonEmptyList.one(OutputError("Errors explicitly dropped due to condition {conditionInfo}", Info)))
-      case Ior.Right => ior
+      case Ior.Right(right) => ior
       case Ior.Both(left: NonEmptyList[OutputError], right: A) if condition.shouldDrop(left) =>
         Ior.Right(right)
     }
@@ -57,7 +59,7 @@ object IorNelOpsCpy2 {
     def dropRightOnRightCondition(
         condition: OnValueCondition[A]
     ): IorNel[OutputError, A] = ior match {
-      case Ior.Left => ior
+      case Ior.Left(left) => ior
       case Ior.Right(right: A) if condition.shouldDrop(right) =>
         Ior.Left(NonEmptyList.one(OutputError("Values explicitly dropped due to condition {conditionInfo}", Info)))
       case Ior.Both(left: NonEmptyList[OutputError], right: A) if condition.shouldDrop(right) => Ior.Left(left)
@@ -80,7 +82,7 @@ trait OnOutputErrorCondition {
   def shouldDrop(errors: NonEmptyList[OutputError]): Boolean
 }
 
-case class PredicateOutputErrorCondition(predicate: NonEmptyList[OutputError] => Boolean) extends OnOutputErrorCondition {
+class PredicateOutputErrorCondition(predicate: NonEmptyList[OutputError] => Boolean) extends OnOutputErrorCondition {
   override def shouldDrop(errors: NonEmptyList[OutputError]): Boolean = predicate(errors)
 }
 
@@ -162,7 +164,7 @@ trait OnValueCondition[A] {
   def shouldDrop(value: A): Boolean
 }
 
-case class PredicateValueCondition[A](predicate: A => Boolean) extends OnValueCondition[A] {
+class PredicateValueCondition[A](predicate: A => Boolean) extends OnValueCondition[A] {
   def shouldDrop(value: A): Boolean = predicate(value)
 }
 

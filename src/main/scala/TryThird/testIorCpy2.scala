@@ -1,12 +1,12 @@
 package org.qadusch.example
-package TrySecond
+package TryThird
 
-import TrySecond.ErrorLevelConditions2._
-import TrySecond.ErrorMessageConditions2._
-import TrySecond.IorNelOpsCpy2.IorOutputErrorOpsCpy2
+import TryThird.ErrorLevelConditions2._
+import TryThird.ErrorMessageConditions2._
+import TryThird.IorNelOpsCpy2._
+import model._
 
 import cats.data.{Ior, IorNel, NonEmptyList}
-import org.qadusch.example.TrySecond
 
 // === EXAMPLES ===
 
@@ -27,21 +27,21 @@ object Hello3 extends App {
   val noRightsOnlyErrors = result1.dropRightOnLeftCondition(FirstMatchLevelLowerThan(Warning)) // no rights
   val both = result1.dropRightOnLeftCondition(FirstMatchLevelLowerThan(Error))
 
-  val noLeftEmptyRight = result2.dropLeftOnRightCondition(TrySecond.IfEmptyString())
+  val noLeftEmptyRight = result2.dropLeftOnRightCondition(TryThird.IfEmptyString())
 
   val noRightAllErrorsName = result1.dropRightOnLeftCondition(FirstMatchNameEquals("Missing Noob"))
   val both2 = result1.dropRightOnLeftCondition(AllMatchNameEquals("Missing Noob"))
 
-  val errorsCondition = TrySecond.PredicateOutputErrorCondition(_.exists(_.level == Error))
-  val valueCondition = TrySecond.PredicateValueCondition[String](_.isEmpty)
+  val errorsCondition = new PredicateOutputErrorCondition(_.exists(_.level == Error))
+  val valueCondition = new PredicateValueCondition[String](_.isEmpty)
 
-  val onlyInfras = result3.dropLeftOnRightCondition(TrySecond.ExistsInfraObject("Rail"))
+  val onlyInfras = result3.dropLeftOnRightCondition(TryThird.ExistsInfraObject("Rail"))
 
   val test: IorNel[OutputError, List[InfraObject]] = result3 match {
     case Ior.Both(left: NonEmptyList[OutputError], right) if FirstMatchLevelLowerThan(Warning).shouldDrop(left) =>
-      result3.dropSideOnErrorCondition(Side.Left, FirstMatchLevelLowerThan(Warning)).getOrElse()
+      result3.dropSideOnErrorCondition(Side.Left, FirstMatchLevelLowerThan(Warning)).get
     case Ior.Both(left, right) =>
-      if (FirstMatchLevelLowerThan(Warning).shouldDrop(left) && TrySecond.ExistsInfraObject("Rail").shouldDrop(right)) {
+      if (FirstMatchLevelLowerThan(Warning).shouldDrop(left) && TryThird.ExistsInfraObject("Rail").shouldDrop(right)) {
         Ior.Right(right)
       } else {
         result3
